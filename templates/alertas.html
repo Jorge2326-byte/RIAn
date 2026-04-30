@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIAN | Alertas de Presupuesto</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="app-body">
+
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-icon">💰</div>
+                <div>
+                    <h2>RIAN</h2>
+                    <p>Finanzas Personales</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <span>📊</span> Dashboard
+                </a>
+
+                <a href="{{ url_for('movimientos') }}" class="nav-link">
+                    <span>📝</span> Movimientos
+                </a>
+
+                <a href="{{ url_for('categorias') }}" class="nav-link">
+                    <span>🏷️</span> Categorías
+                </a>
+
+                <a href="{{ url_for('alertas') }}" class="nav-link active">
+                    <span>🔔</span> Alertas
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ usuario[:1] }}</div>
+            <div class="user-info">
+                <strong>{{ usuario }}</strong>
+                <span>{{ correo_usuario }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-mini" title="Cerrar sesión">⏻</a>
+        </div>
+    </aside>
+
+    <main class="dashboard-content">
+        <div class="topbar">
+            <div>
+                <h1>Alertas de Presupuesto</h1>
+                <p>Control de límites por categoría</p>
+            </div>
+
+            <button type="button" class="btn-add" id="openBudgetModal">
+                + Presupuesto
+            </button>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="page-flashes">
+                    {% for category, message in messages %}
+                        <div class="page-flash {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="budget-alert-list">
+            {% if alertas %}
+                {% for item in alertas %}
+                    <article class="budget-alert-card {{ item.alerta_clase }}">
+                        <div class="budget-status-icon">
+                            {{ item.icono_estado }}
+                        </div>
+
+                        <div class="budget-alert-content">
+                            <div class="budget-alert-header">
+                                <div>
+                                    <h3>
+                                        {{ item.icono_categoria }}
+                                        {{ item.categoria }}
+                                        —
+                                        {{ item.estado_texto }}
+                                    </h3>
+
+                                    <p>
+                                        Gastado:
+                                        ${{ formatear_monto(item.gasto) }}
+                                        de
+                                        {% if item.limite > 0 %}
+                                            ${{ formatear_monto(item.limite) }}
+                                        {% else %}
+                                            presupuesto no configurado
+                                        {% endif %}
+                                    </p>
+                                </div>
+
+                                <strong class="budget-percent {{ item.barra_clase }}">
+                                    {{ item.porcentaje }}%
+                                </strong>
+                            </div>
+
+                            <div class="budget-progress-bg">
+                                <div
+                                    class="budget-progress-fill {{ item.barra_clase }}"
+                                    style="width: {{ item.porcentaje_barra }}%;"
+                                ></div>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="panel">
+                    <div class="empty-state">
+                        Aún no tienes categorías para mostrar.
+                    </div>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+</div>
+
+<!-- MODAL PRESUPUESTO -->
+<div class="modal-overlay" id="budgetModalOverlay"></div>
+
+<div class="modal-window" id="budgetModal">
+    <div class="modal-card">
+        <h2>Configurar presupuesto</h2>
+
+        <form action="{{ url_for('guardar_presupuesto') }}" method="POST" class="modal-form">
+
+            <div class="form-group">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria" required>
+    <option value="Alimentación">🍔 Alimentación</option>
+    <option value="Transporte">🚌 Transporte</option>
+    <option value="Vivienda">🏠 Vivienda</option>
+    <option value="Salud">💊 Salud</option>
+    <option value="Educación">📚 Educación</option>
+    <option value="Ocio">🎮 Ocio</option>
+    <option value="Ropa">👕 Ropa</option>
+    <option value="Hogar">🏠 Hogar</option>
+    <option value="Servicios">💡 Servicios</option>
+    <option value="Salario">💼 Salario</option>
+    <option value="Freelance">🧾 Freelance</option>
+    <option value="Ventas">🛒 Ventas</option>
+    <option value="Inversiones">📈 Inversiones</option>
+    <option value="Otros ingresos">💰 Otros ingresos</option>
+    <option value="Otros">📦 Otros</option>
+</select>
+            </div>
+
+            <div class="form-group">
+                <label for="limite">Límite mensual (COP)</label>
+                <input
+                    type="number"
+                    id="limite"
+                    name="limite"
+                    min="1"
+                    step="0.01"
+                    placeholder="0"
+                    required
+                >
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="closeBudgetModal">
+                    Cancelar
+                </button>
+
+                <button type="submit" class="btn-primary">
+                    Guardar
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+    const openBudgetModal = document.getElementById('openBudgetModal');
+    const closeBudgetModal = document.getElementById('closeBudgetModal');
+    const budgetModalOverlay = document.getElementById('budgetModalOverlay');
+    const budgetModal = document.getElementById('budgetModal');
+
+    function openModal() {
+        budgetModalOverlay.classList.add('show');
+        budgetModal.classList.add('show');
+    }
+
+    function closeModal() {
+        budgetModalOverlay.classList.remove('show');
+        budgetModal.classList.remove('show');
+    }
+
+    openBudgetModal.addEventListener('click', openModal);
+    closeBudgetModal.addEventListener('click', closeModal);
+    budgetModalOverlay.addEventListener('click', closeModal);
+</script>
+
+</body>
+</html>

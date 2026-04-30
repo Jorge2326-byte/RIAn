@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIAN | Categorías y Reportes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="app-body">
+
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-icon">💰</div>
+                <div>
+                    <h2>RIAN</h2>
+                    <p>Finanzas Personales</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="{{ url_for('movimientos') }}" class="nav-link">
+                    <span>📝</span> Movimientos
+                </a>
+                <a href="{{ url_for('categorias') }}" class="nav-link active">
+                    <span>🏷️</span> Categorías
+                </a>
+                <a href="{{ url_for('alertas') }}" class="nav-link">
+                    <span>🔔</span> Alertas
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ usuario[:1] }}</div>
+            <div class="user-info">
+                <strong>{{ usuario }}</strong>
+                <span>{{ correo_usuario }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-mini" title="Cerrar sesión">⏻</a>
+        </div>
+    </aside>
+
+    <main class="dashboard-content">
+        <div class="topbar">
+            <div>
+                <h1>Categorías y Reportes</h1>
+                <p>Patrones de consumo</p>
+            </div>
+        </div>
+
+        <section class="panel categories-main-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Categorías de gasto</h2>
+                    <p>Distribución visual de este mes</p>
+                </div>
+            </div>
+
+            <div class="category-card-grid">
+                {% for item in categorias_reporte %}
+                    <article class="report-category-card">
+                        <div class="report-category-icon">{{ item.icono }}</div>
+                        <h3>{{ item.nombre }}</h3>
+                        <strong class="{{ item.color }}">
+                            ${{ formatear_monto(item.total) }}
+                        </strong>
+                        <span>{{ item.porcentaje }}%</span>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel analysis-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Análisis detallado</h2>
+                </div>
+            </div>
+
+            {% if categorias_detalle %}
+                <div class="analysis-list">
+                    {% for item in categorias_detalle %}
+                        <div class="analysis-row">
+                            <div class="analysis-category">
+                                <span>{{ item.icono }}</span>
+                                <strong>{{ item.nombre }}</strong>
+                            </div>
+
+                            <div class="analysis-content">
+                                <div class="analysis-bar-bg">
+                                    <div class="analysis-bar {{ item.color }}" style="width: {{ item.barra }}%;"></div>
+                                </div>
+
+                                <p>
+                                    {% if item.presupuesto > 0 %}
+                                        Presupuesto: ${{ formatear_monto(item.presupuesto) }}
+                                    {% else %}
+                                        Sin presupuesto asignado
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <div class="analysis-amount">
+                                ${{ formatear_monto(item.total) }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    Aún no tienes gastos registrados este mes.
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+</div>
+
+</body>
+</html>

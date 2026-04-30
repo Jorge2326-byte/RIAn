@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIAN | Movimientos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="app-body">
+
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-icon">💰</div>
+                <div>
+                    <h2>RIAN</h2>
+                    <p>Finanzas Personales</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="{{ url_for('movimientos') }}" class="nav-link active">
+                    <span>📝</span> Movimientos
+                </a>
+                <a href="{{ url_for('categorias') }}" class="nav-link">
+    <span>🏷️</span> Categorías
+</a>
+                <a href="{{ url_for('alertas') }}" class="nav-link">
+                    <span>🔔</span> Alertas
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ usuario[:1] }}</div>
+            <div class="user-info">
+                <strong>{{ usuario }}</strong>
+                <span>{{ correo_usuario }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-mini" title="Cerrar sesión">⏻</a>
+        </div>
+    </aside>
+
+    <main class="dashboard-content">
+        <div class="topbar">
+            <div>
+                <h1>Movimientos</h1>
+                <p>Registro de ingresos y gastos</p>
+            </div>
+
+            <button type="button" class="btn-add" id="openModal">+ Nuevo</button>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="page-flashes">
+                    {% for category, message in messages %}
+                        <div class="page-flash {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="panel movements-panel">
+            <form method="GET" action="{{ url_for('movimientos') }}" class="movement-filters">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input
+                        type="text"
+                        name="buscar"
+                        placeholder="Buscar..."
+                        value="{{ buscar }}"
+                    >
+                </div>
+
+                <select name="filtro" onchange="this.form.submit()">
+                    <option value="Todos" {% if filtro == 'Todos' %}selected{% endif %}>Todos</option>
+                    <option value="Ingreso" {% if filtro == 'Ingreso' %}selected{% endif %}>Ingresos</option>
+                    <option value="Gasto" {% if filtro == 'Gasto' %}selected{% endif %}>Gastos</option>
+                </select>
+
+                <select name="categoria" onchange="this.form.submit()">
+                    <option value="Todas las categorías" {% if categoria_filtro == 'Todas las categorías' %}selected{% endif %}>
+                        Todas las categorías
+                    </option>
+
+                    {% for cat in categorias %}
+                        <option value="{{ cat }}" {% if categoria_filtro == cat %}selected{% endif %}>
+                            {{ cat }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>FECHA</th>
+                            <th>DESCRIPCIÓN</th>
+                            <th>CATEGORÍA</th>
+                            <th>TIPO</th>
+                            <th>MONTO</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% if datos %}
+                            {% for mov in datos %}
+                                <tr>
+                                    <td>{{ mov.fecha }}</td>
+
+                                    <td>
+                                        <strong>{{ mov.descripcion }}</strong>
+                                    </td>
+
+                                    <td>
+                                        <span class="category-inline">
+                                            <span>{{ mov.icono }}</span>
+                                            {{ mov.categoria }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="type-badge {{ 'income-badge' if mov.tipo == 'Ingreso' else 'expense-badge' }}">
+                                            {{ mov.tipo }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="amount-cell {{ 'positive' if mov.tipo == 'Ingreso' else 'negative' }}">
+                                            {% if mov.tipo == 'Ingreso' %}+{% else %}-{% endif %}${{ formatear_monto(mov.monto) }}
+                                        </span>
+                                    </td>
+
+                                    <td class="actions-cell">
+                                        <a
+                                            href="{{ url_for('eliminar', id=mov.id) }}"
+                                            class="delete-btn"
+                                            onclick="return confirm('¿Seguro que deseas eliminar este movimiento?')"
+                                            title="Eliminar"
+                                        >
+                                            🗑️
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state table-empty">
+                                        No hay movimientos para mostrar.
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay"></div>
+
+<div class="modal-window" id="movementModal">
+    <div class="modal-card">
+        <h2>Registrar movimiento</h2>
+
+        <div class="movement-type-switch">
+            <button type="button" class="type-btn income active" data-type="Ingreso">💵 Ingreso</button>
+            <button type="button" class="type-btn expense" data-type="Gasto">💸 Gasto</button>
+        </div>
+
+        <form action="{{ url_for('guardar_movimiento') }}" method="POST" class="modal-form">
+            <input type="hidden" name="tipo" id="tipoHidden" value="Ingreso">
+            <input type="hidden" name="redirect_to" value="movimientos">
+
+            <div class="form-group">
+                <label for="descripcion">Descripción</label>
+                <input type="text" id="descripcion" name="descripcion" placeholder="Ej: Mercado semanal" required>
+            </div>
+
+            <div class="form-group">
+                <label for="monto">Monto (COP)</label>
+                <input type="number" id="monto" name="monto" min="1" step="0.01" placeholder="0" required>
+            </div>
+
+            <div class="form-group">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria" required></select>
+            </div>
+
+            <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input type="date" id="fecha" name="fecha" value="{{ hoy_input }}" required>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="closeModal">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const openModalBtn = document.getElementById('openModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('movementModal');
+    const typeButtons = document.querySelectorAll('.type-btn');
+    const tipoHidden = document.getElementById('tipoHidden');
+    const categoriaSelect = document.getElementById('categoria');
+
+    const categories = {
+    Ingreso: [
+        { name: 'Salario', icon: '💼' },
+        { name: 'Freelance', icon: '🧾' },
+        { name: 'Ventas', icon: '🛒' },
+        { name: 'Inversiones', icon: '📈' },
+        { name: 'Otros ingresos', icon: '💰' }
+    ],
+    Gasto: [
+        { name: 'Alimentación', icon: '🍔' },
+        { name: 'Ropa', icon: '👕' },
+        { name: 'Educación', icon: '📚' },
+        { name: 'Transporte', icon: '🚌' },
+        { name: 'Ocio', icon: '🎮' },
+        { name: 'Salud', icon: '💊' },
+        { name: 'Hogar', icon: '🏠' },
+        { name: 'Servicios', icon: '💡' },
+        { name: 'Vivienda', icon: '🏠' }
+    ]
+};
+
+    function renderCategories(type) {
+    categoriaSelect.innerHTML = '';
+
+    categories[type].forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.name;
+        option.textContent = `${item.icon} ${item.name}`;
+        categoriaSelect.appendChild(option);
+    });
+}
+
+    function setType(type) {
+        tipoHidden.value = type;
+
+        typeButtons.forEach(btn => {
+            btn.classList.remove('active');
+
+            if (btn.dataset.type === type) {
+                btn.classList.add('active');
+            }
+        });
+
+        renderCategories(type);
+    }
+
+    function openModal() {
+        overlay.classList.add('show');
+        modal.classList.add('show');
+    }
+
+    function closeModal() {
+        overlay.classList.remove('show');
+        modal.classList.remove('show');
+    }
+
+    openModalBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', closeModal);
+
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            setType(btn.dataset.type);
+        });
+    });
+
+    setType('Ingreso');
+</script>
+
+</body>
+</html>
