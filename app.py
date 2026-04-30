@@ -77,6 +77,7 @@ def utilidades_globales():
     return {
         "formatear_monto": formatear_monto,
         "formato_fecha": formato_fecha,
+        "fecha_larga_es": fecha_larga_es,
         "categoria_meta": categoria_meta
     }
 
@@ -165,7 +166,6 @@ def dashboard():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Ingresos del mes
     cur.execute("""
         SELECT COALESCE(SUM(monto),0)
         FROM movimientos
@@ -176,7 +176,6 @@ def dashboard():
     """, (usuario_id,))
     ingresos = float(cur.fetchone()[0] or 0)
 
-    # Gastos del mes
     cur.execute("""
         SELECT COALESCE(SUM(monto),0)
         FROM movimientos
@@ -189,7 +188,6 @@ def dashboard():
 
     balance = ingresos - gastos
 
-    # Total movimientos del mes
     cur.execute("""
         SELECT COUNT(*)
         FROM movimientos
@@ -199,7 +197,6 @@ def dashboard():
     """, (usuario_id,))
     total_movimientos = int(cur.fetchone()[0] or 0)
 
-    # Últimos movimientos
     cur.execute("""
         SELECT id, tipo, descripcion, monto, categoria, fecha
         FROM movimientos
@@ -224,7 +221,6 @@ def dashboard():
             "color": color
         })
 
-    # Categorías resumen
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -316,6 +312,7 @@ def movimientos():
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
+
 
 # ================== GUARDAR MOVIMIENTO ==================
 
@@ -415,10 +412,10 @@ def categorias():
     cur.close()
     conn.close()
 
-    categorias = []
+    categorias_lista = []
     for row in rows:
         icono, color = categoria_meta(row[0])
-        categorias.append({
+        categorias_lista.append({
             "nombre": row[0] or "Sin categoría",
             "ingresos": float(row[1] or 0),
             "gastos": float(row[2] or 0),
@@ -427,13 +424,13 @@ def categorias():
             "color": color
         })
 
-   return render_template(
-    'categorias.html',
-    categorias=categorias,
-    datos=categorias,
-    usuario=session.get('usuario', 'Usuario'),
-    correo_usuario=session.get('correo', '')
-)
+    return render_template(
+        'categorias.html',
+        categorias=categorias_lista,
+        datos=categorias_lista,
+        usuario=session.get('usuario', 'Usuario'),
+        correo_usuario=session.get('correo', '')
+    )
 
 
 # ================== REPORTES ==================
@@ -494,15 +491,15 @@ def reportes():
     conn.close()
 
     return render_template(
-    'reportes.html',
-    ingresos=ingresos,
-    gastos=gastos,
-    balance=balance,
-    gastos_por_categoria=gastos_por_categoria,
-    resumen=resumen,
-    usuario=session.get('usuario', 'Usuario'),
-    correo_usuario=session.get('correo', '')
-)
+        'reportes.html',
+        ingresos=ingresos,
+        gastos=gastos,
+        balance=balance,
+        gastos_por_categoria=gastos_por_categoria,
+        resumen=resumen,
+        usuario=session.get('usuario', 'Usuario'),
+        correo_usuario=session.get('correo', '')
+    )
 
 
 # ================== ALERTAS ==================
@@ -571,12 +568,12 @@ def alertas():
         })
 
     return render_template(
-    'alertas.html',
-    alertas=alertas_lista,
-    datos=alertas_lista,
-    usuario=session.get('usuario', 'Usuario'),
-    correo_usuario=session.get('correo', '')
-)
+        'alertas.html',
+        alertas=alertas_lista,
+        datos=alertas_lista,
+        usuario=session.get('usuario', 'Usuario'),
+        correo_usuario=session.get('correo', '')
+    )
 
 
 # ================== GUARDAR PRESUPUESTO ==================
