@@ -105,31 +105,59 @@ def dashboard():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Fechas del mes
-    inicio_mes = datetime.now().replace(day=1)
-
-    # Ingresos
     cur.execute("""
         SELECT COALESCE(SUM(monto),0)
         FROM movimientos
-        WHERE usuario_id=%s AND tipo='Ingreso' AND fecha >= %s
-    """, (usuario_id, inicio_mes))
-    ingresos = float(cur.fetchone()[0])
+        WHERE usuario_id=%s
+          AND tipo='Ingreso'
+          AND fecha >= date_trunc('month', CURRENT_DATE)
+          AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
+    """, (usuario_id,))
+    ingresos = float(cur.fetchone()[0] or 0)
 
-    # Gastos
     cur.execute("""
         SELECT COALESCE(SUM(monto),0)
         FROM movimientos
-        WHERE usuario_id=%s AND tipo='Gasto' AND fecha >= %s
-    """, (usuario_id, inicio_mes))
-    gastos = float(cur.fetchone()[0])
+        WHERE usuario_id=%s
+          AND tipo='Gasto'
+          AND fecha >= date_trunc('month', CURRENT_DATE)
+          AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
+    """, (usuario_id,))
+    gastos = float(cur.fetchone()[0] or 0)
 
     balance = ingresos - gastos
+
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM movimientos
+        WHERE usuario_id=%s
+          AND fecha >= date_trunc('month', CURRENT_DATE)
+          AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
+    """, (usuario_id,))
+    total_movimientos = int(cur.fetchone()[0] or 0)
+
+    cur.execute("""
+        SELECT id, tipo, descripcion, monto, categoria, fecha
+        FROM movimientos
+        WHERE usuario_id=%s
+        ORDER BY fecha DESC, id DESC
+        LIMIT 5
+    """, (usuario_id,))
+    movimientos = cur.fetchall()
 
     cur.close()
     conn.close()
 
-    return render_template('dashboard.html', ingresos=ingresos, gastos=gastos, balance=balance)
+    return render_template(
+        'dashboard.html',
+        ingresos=ingresos,
+        gastos=gastos,
+        balance=balance,
+        total_movimientos=total_movimientos,
+        movimientos=movimientos,
+        usuario=session.get('usuario'),
+        correo_usuario=session.get('correo')
+    )
 
 # ================== MOVIMIENTOS ==================
 
@@ -162,6 +190,8 @@ def guardar_movimiento():
     if 'usuario_id' not in session:
         return redirect('/')
 
+    fecha = request.form.get('fecha') or datetime.now().strftime('%Y-%m-%d')
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -175,7 +205,7 @@ def guardar_movimiento():
             request.form['descripcion'],
             float(request.form['monto']),
             request.form['categoria'],
-            request.form['fecha']
+            fecha 
         ))
         conn.commit()
     finally:
@@ -189,12 +219,17 @@ def guardar_movimiento():
 
 @app.route('/eliminar/<int:id>')
 def eliminar(id):
+    if 'usuario_id' not in session:
+        return redirect('/')
+
     conn = get_db_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute("DELETE FROM movimientos WHERE id=%s AND usuario_id=%s",
-                    (id, session['usuario_id']))
+        cur.execute(
+            "DELETE FROM movimientos WHERE id=%s AND usuario_id=%s",
+            (id, session['usuario_id'])
+        )
         conn.commit()
     finally:
         cur.close()
