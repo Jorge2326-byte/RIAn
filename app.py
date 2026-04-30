@@ -64,6 +64,23 @@ def formato_fecha(fecha):
         return str(fecha)
 
 
+def formatear_monto(valor):
+    try:
+        valor = float(valor or 0)
+        return "{:,.2f}".format(valor)
+    except Exception:
+        return "0.00"
+
+
+@app.context_processor
+def utilidades_globales():
+    return {
+        "formatear_monto": formatear_monto,
+        "formato_fecha": formato_fecha,
+        "categoria_meta": categoria_meta
+    }
+
+
 # ================== LOGIN ==================
 
 @app.route('/', methods=['GET', 'POST'])
