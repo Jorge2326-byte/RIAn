@@ -309,8 +309,13 @@ def movimientos():
             "color": color
         })
 
-    return render_template('movimientos.html', datos=datos, movimientos=datos)
-
+    return render_template(
+        'movimientos.html',
+        datos=datos,
+        movimientos=datos,
+        usuario=session.get('usuario', 'Usuario'),
+        correo_usuario=session.get('correo', '')
+    )
 
 # ================== GUARDAR MOVIMIENTO ==================
 
@@ -422,12 +427,13 @@ def categorias():
             "color": color
         })
 
-    return render_template(
-        'categorias.html',
-        categorias=categorias,
-        datos=categorias,
-        usuario=session.get('usuario', 'Usuario')
-    )
+   return render_template(
+    'categorias.html',
+    categorias=categorias,
+    datos=categorias,
+    usuario=session.get('usuario', 'Usuario'),
+    correo_usuario=session.get('correo', '')
+)
 
 
 # ================== REPORTES ==================
@@ -488,14 +494,15 @@ def reportes():
     conn.close()
 
     return render_template(
-        'reportes.html',
-        ingresos=ingresos,
-        gastos=gastos,
-        balance=balance,
-        gastos_por_categoria=gastos_por_categoria,
-        resumen=resumen,
-        usuario=session.get('usuario', 'Usuario')
-    )
+    'reportes.html',
+    ingresos=ingresos,
+    gastos=gastos,
+    balance=balance,
+    gastos_por_categoria=gastos_por_categoria,
+    resumen=resumen,
+    usuario=session.get('usuario', 'Usuario'),
+    correo_usuario=session.get('correo', '')
+)
 
 
 # ================== ALERTAS ==================
@@ -564,11 +571,12 @@ def alertas():
         })
 
     return render_template(
-        'alertas.html',
-        alertas=alertas_lista,
-        datos=alertas_lista,
-        usuario=session.get('usuario', 'Usuario')
-    )
+    'alertas.html',
+    alertas=alertas_lista,
+    datos=alertas_lista,
+    usuario=session.get('usuario', 'Usuario'),
+    correo_usuario=session.get('correo', '')
+)
 
 
 # ================== GUARDAR PRESUPUESTO ==================
