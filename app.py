@@ -1,29 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mysqldb import MySQL
-##
-import os
-import psycopg2
-from flask import Flask
-
-app = Flask(__name__)
-
-# Conexión a la base de datos
-DATABASE_URL = os.environ.get("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
-
-# 🔥 PRUEBA DE CONEXIÓN
-cursor.execute("SELECT NOW();")
-print(cursor.fetchone())
-
-@app.route("/")
-def home():
-    return "Conexión exitosa a la base de datos 🚀"
-
-if __name__ == "__main__":
-    app.run()
-##
 
 app = Flask(__name__)
 app.secret_key = "rian123"
