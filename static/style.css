@@ -1787,16 +1787,21 @@ body.auth-page{
     font-weight: 500;
 }
 
-.panel-chart .chart-box,
-.chart-box {
-    position: relative;
-    width: 100%;
-    height: 280px;
-    min-height: 280px;
+/* =========================
+   RESPONSIVE DEL GRÁFICO
+========================= */
+
+@media (max-width: 700px) {
+    .panel-chart .chart-box,
+    .chart-box {
+        height: 230px;
+        min-height: 230px;
+    }
+
+    .panel-chart .chart-box canvas,
+    .chart-box canvas {
+        height: 220px !important;
+        max-height: 220px;
+    }
 }
 
-.panel-chart .chart-box canvas,
-.chart-box canvas {
-    width: 100% !important;
-    height: 100% !important;
-}
