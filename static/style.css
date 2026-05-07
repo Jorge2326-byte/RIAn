@@ -1630,3 +1630,59 @@ body.auth-page{
 .report-category-card strong {
     background: transparent !important;
 }
+
+/* ===== FILTROS MOVIMIENTOS ===== */
+
+.movement-filters {
+    display: grid;
+    grid-template-columns: 1fr 160px 230px;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    padding: 0 14px;
+    height: 48px;
+}
+
+.search-box input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    background: transparent;
+    color: #0f172a;
+}
+
+.movement-filters select {
+    height: 48px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    padding: 0 14px;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.date-cell strong {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.date-cell span {
+    color: #64748b;
+    font-size: 12px;
+}
