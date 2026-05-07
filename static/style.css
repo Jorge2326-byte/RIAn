@@ -1580,3 +1580,53 @@ body.auth-page{
     color: #94a3b8 !important;
     font-weight: 600;
 }
+
+/* ===== CATEGORÍAS: MONTOS VISIBLES ===== */
+
+.category-amount {
+    display: block;
+    margin-top: 6px;
+    font-size: 18px;
+    font-weight: 800;
+    background: transparent !important;
+}
+
+.category-percent {
+    display: block;
+    margin-top: 4px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cat-orange-text {
+    color: #f59e0b !important;
+}
+
+.cat-yellow-text {
+    color: #eab308 !important;
+}
+
+.cat-cyan-text {
+    color: #06b6d4 !important;
+}
+
+.cat-blue-text {
+    color: #3b82f6 !important;
+}
+
+.cat-pink-text {
+    color: #ec4899 !important;
+}
+
+.cat-green-text {
+    color: #10b981 !important;
+}
+
+.cat-brown-text {
+    color: #92400e !important;
+}
+
+.report-category-card strong {
+    background: transparent !important;
+}
