@@ -544,59 +544,97 @@ def alertas():
 
     usuario_id = session['usuario_id']
 
+    # Presupuestos base para que siempre se vea como el diseño
+    presupuestos_base = {
+        "Alimentación": 400000,
+        "Transporte": 150000,
+        "Vivienda": 950000,
+        "Salud": 200000,
+        "Educación": 300000,
+        "Ocio": 150000,
+        "Ropa": 250000,
+        "Otros": 100000
+    }
+
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Gastos reales del mes por categoría
     cur.execute("""
-        SELECT p.id,
-               p.categoria,
-               p.limite_mensual,
-               COALESCE(SUM(m.monto), 0) AS gastado
-        FROM presupuestos p
-        LEFT JOIN movimientos m
-          ON p.usuario_id = m.usuario_id
-         AND p.categoria = m.categoria
-         AND m.tipo = 'Gasto'
-         AND m.fecha >= date_trunc('month', CURRENT_DATE)
-         AND m.fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
-        WHERE p.usuario_id=%s
-        GROUP BY p.id, p.categoria, p.limite_mensual
-        ORDER BY p.categoria ASC
+        SELECT categoria, COALESCE(SUM(monto), 0) AS total
+        FROM movimientos
+        WHERE usuario_id=%s
+          AND tipo='Gasto'
+          AND fecha >= date_trunc('month', CURRENT_DATE)
+          AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
+        GROUP BY categoria
     """, (usuario_id,))
+    gastos_rows = cur.fetchall()
 
-    rows = cur.fetchall()
+    # Presupuestos personalizados del usuario
+    cur.execute("""
+        SELECT categoria, limite_mensual
+        FROM presupuestos
+        WHERE usuario_id=%s
+    """, (usuario_id,))
+    presupuestos_rows = cur.fetchall()
 
     cur.close()
     conn.close()
 
+    gastos_dict = {}
+    for categoria, total in gastos_rows:
+        clave = (categoria or "Otros").strip().lower()
+        gastos_dict[clave] = float(total or 0)
+
+    presupuestos_dict = {}
+    for categoria, limite in presupuestos_rows:
+        clave = (categoria or "Otros").strip().lower()
+        presupuestos_dict[clave] = float(limite or 0)
+
     alertas_lista = []
-    for row in rows:
-        presupuesto_id = row[0]
-        categoria = row[1]
-        limite = float(row[2] or 0)
-        gastado = float(row[3] or 0)
+
+    for categoria, limite_base in presupuestos_base.items():
+        clave = categoria.strip().lower()
+
+        gasto = gastos_dict.get(clave, 0)
+        limite = presupuestos_dict.get(clave, limite_base)
 
         porcentaje = 0
         if limite > 0:
-            porcentaje = round((gastado / limite) * 100, 2)
+            porcentaje = round((gasto / limite) * 100)
+
+        porcentaje_barra = min(porcentaje, 100)
 
         if porcentaje >= 100:
-            estado = "superado"
+            estado_texto = "Presupuesto superado"
+            alerta_clase = "danger"
+            barra_clase = "danger"
+            icono_estado = "🚨"
         elif porcentaje >= 80:
-            estado = "alerta"
+            estado_texto = "Cerca del límite"
+            alerta_clase = "warning"
+            barra_clase = "warning"
+            icono_estado = "⚠️"
         else:
-            estado = "normal"
+            estado_texto = "Dentro del presupuesto"
+            alerta_clase = "success"
+            barra_clase = "success"
+            icono_estado = "✅"
 
-        icono, color = categoria_meta(categoria)
+        icono_categoria, color = categoria_meta(categoria)
 
         alertas_lista.append({
-            "id": presupuesto_id,
             "categoria": categoria,
-            "limite_mensual": limite,
-            "gastado": gastado,
+            "icono_categoria": icono_categoria,
+            "icono_estado": icono_estado,
+            "estado_texto": estado_texto,
+            "alerta_clase": alerta_clase,
+            "barra_clase": barra_clase,
+            "gasto": gasto,
+            "limite": limite,
             "porcentaje": porcentaje,
-            "estado": estado,
-            "icono": icono,
+            "porcentaje_barra": porcentaje_barra,
             "color": color
         })
 
@@ -608,7 +646,6 @@ def alertas():
         correo_usuario=session.get('correo', '')
     )
 
-
 # ================== GUARDAR PRESUPUESTO ==================
 
 @app.route('/guardar_presupuesto', methods=['POST'])
@@ -619,8 +656,11 @@ def guardar_presupuesto():
     usuario_id = session['usuario_id']
     categoria = request.form.get('categoria', '').strip()
 
+    # Tu HTML manda name="limite", no name="limite_mensual"
+    limite_form = request.form.get('limite') or request.form.get('limite_mensual') or 0
+
     try:
-        limite_mensual = float(request.form.get('limite_mensual', 0))
+        limite_mensual = float(limite_form)
     except ValueError:
         flash('El límite mensual no es válido', 'error')
         return redirect('/alertas')
