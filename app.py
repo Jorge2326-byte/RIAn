@@ -373,12 +373,13 @@ def guardar_movimiento():
     tipo = request.form.get('tipo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
     categoria = request.form.get('categoria', 'Sin categoría').strip()
+
     fecha_form = request.form.get('fecha')
 
-if fecha_form:
-    fecha = f"{fecha_form} {datetime.now().strftime('%H:%M:%S')}"
-else:
-    fecha = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if fecha_form:
+        fecha = f"{fecha_form} {datetime.now().strftime('%H:%M:%S')}"
+    else:
+        fecha = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         monto = float(request.form.get('monto', 0))
@@ -412,8 +413,7 @@ else:
 
     flash('Movimiento guardado correctamente', 'success')
     return redirect('/dashboard')
-
-
+    
 # ================== ELIMINAR MOVIMIENTO ==================
 
 @app.route('/eliminar/<int:id>')
