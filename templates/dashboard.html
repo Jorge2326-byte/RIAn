@@ -1,365 +1,144 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIAN | Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="app-body">
-
-<div class="app-layout">
-
-    <aside class="app-sidebar">
-        <div>
-            <div class="sidebar-brand">
-                <div class="brand-icon">💰</div>
-                <div>
-                    <h2>RIAN</h2>
-                    <p>Finanzas Personales</p>
-                </div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <a href="{{ url_for('dashboard') }}" class="nav-link active">
-                    <span>📊</span> Dashboard
-                </a>
-                <a href="{{ url_for('movimientos') }}" class="nav-link">
-                    <span>📝</span> Movimientos
-                </a>
-                <a href="{{ url_for('categorias') }}" class="nav-link">
-    <span>🏷️</span> Categorías
-</a>
-                <a href="{{ url_for('alertas') }}" class="nav-link">
-                    <span>🔔</span> Alertas
-                </a>
-            </nav>
-        </div>
-
-        <div class="sidebar-user">
-            <div class="user-avatar">{{ usuario[:1] }}</div>
-            <div class="user-info">
-                <strong>{{ usuario }}</strong>
-                <span>{{ correo_usuario }}</span>
-            </div>
-            <a href="{{ url_for('logout') }}" class="logout-mini" title="Cerrar sesión">⏻</a>
-        </div>
-    </aside>
-
-    <main class="dashboard-content">
-        <div class="topbar">
-            <div>
-                <h1>Dashboard</h1>
-                <p>{{ fecha_actual }}</p>
-            </div>
-
-            <button type="button" class="btn-add" id="openModal">+ Agregar</button>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="page-flashes">
-                    {% for category, message in messages %}
-                        <div class="page-flash {{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <section class="stats-grid">
-            <article class="stat-card stat-green">
-                <div class="stat-icon">💵</div>
-                <span>INGRESOS DEL MES</span>
-                <h3>${{ formatear_monto(ingresos) }}</h3>
-            </article>
-
-            <article class="stat-card stat-red">
-                <div class="stat-icon">💸</div>
-                <span>GASTOS DEL MES</span>
-                <h3>${{ formatear_monto(gastos) }}</h3>
-            </article>
-
-            <article class="stat-card stat-blue">
-                <div class="stat-icon">💳</div>
-                <span>BALANCE DISPONIBLE</span>
-                <h3 class="{{ 'negative' if balance < 0 else 'positive' }}">
-                    {% if balance < 0 %}-{% endif %}${{ formatear_monto(balance|abs) }}
-                </h3>
-            </article>
-
-            <article class="stat-card stat-yellow">
-                <div class="stat-icon">📁</div>
-                <span>MOVIMIENTOS</span>
-                <h3>{{ total_movimientos }}</h3>
-            </article>
-        </section>
-
-        <section class="dashboard-grid">
-            <div class="panel panel-large">
-                <div class="panel-header">
-                    <div>
-                        <h2>Gastos por categoría</h2>
-                        <p>Este mes</p>
-                    </div>
-                </div>
-
-                {% if categorias_resumen %}
-                    <div class="category-list">
-                        {% for item in categorias_resumen %}
-                            <div class="category-row">
-                                <div class="category-name">
-                                    <span class="category-emoji">{{ item.icono }}</span>
-                                    <span>{{ item.nombre }}</span>
-                                </div>
-
-                                <div class="category-bar-wrap">
-                                    <div class="category-bar-bg">
-                                        <div class="category-bar {{ item.color }}" style="width: {{ item.width }}%;"></div>
-                                    </div>
-                                </div>
-
-                                <div class="category-value">
-                                    ${{ formatear_monto(item.total) }}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="empty-state">
-                        Aún no tienes gastos registrados este mes.
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-chart">
-                <div class="panel-header">
-                    <div>
-                        <h2>Distribución</h2>
-                        <p>Ingresos vs Gastos</p>
-                    </div>
-                </div>
-
-                <div class="chart-box">
-                    <canvas id="distributionChart"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <section class="panel recent-panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Últimos movimientos</h2>
-                </div>
-            </div>
-
-            {% if movimientos %}
-                <div class="movements-list">
-                    {% for mov in movimientos %}
-                        <div class="movement-item">
-                            <div class="movement-left">
-                                <div class="movement-icon">{{ mov.icono }}</div>
-                                <div class="movement-text">
-                                    <h4>{{ mov.descripcion }}</h4>
-                                    <p>{{ mov.categoria }} · {{ mov.fecha_texto }}</p>
-                                </div>
-                            </div>
-
-                            <div class="movement-amount {{ 'negative' if mov.tipo == 'Gasto' else 'positive' }}">
-                                {% if mov.tipo == 'Gasto' %}-{% else %}+{% endif %}${{ formatear_monto(mov.monto) }}
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    Todavía no tienes movimientos registrados.
-                </div>
-            {% endif %}
-        </section>
-    </main>
-</div>
-
-<!-- MODAL -->
+<!-- MODAL REGISTRAR MOVIMIENTO -->
 <div class="modal-overlay" id="modalOverlay"></div>
 
 <div class="modal-window" id="movementModal">
     <div class="modal-card">
         <h2>Registrar movimiento</h2>
 
-        <div class="movement-type-switch">
-            <button type="button" class="type-btn income active" data-type="Ingreso">💵 Ingreso</button>
-            <button type="button" class="type-btn expense" data-type="Gasto">💸 Gasto</button>
-        </div>
-
         <form action="{{ url_for('guardar_movimiento') }}" method="POST" class="modal-form">
-            <input type="hidden" name="tipo" id="tipoHidden" value="Ingreso">
-            <input type="hidden" name="redirect_to" value="dashboard"> 
+
+            <input type="hidden" name="tipo" id="tipoMovimiento" value="Ingreso">
+            <input type="hidden" name="redirect_to" value="dashboard">
+
+            <div class="movement-type-switch">
+                <button type="button" id="btnIngreso" class="type-btn income active" onclick="seleccionarTipo('Ingreso')">
+                    💵 Ingreso
+                </button>
+
+                <button type="button" id="btnGasto" class="type-btn expense" onclick="seleccionarTipo('Gasto')">
+                    💸 Gasto
+                </button>
+            </div>
 
             <div class="form-group">
                 <label for="descripcion">Descripción</label>
-                <input type="text" id="descripcion" name="descripcion" placeholder="Ej: Mercado semanal" required>
+                <input 
+                    type="text" 
+                    id="descripcion" 
+                    name="descripcion" 
+                    placeholder="Ej: Mercado semanal" 
+                    required
+                >
             </div>
 
             <div class="form-group">
                 <label for="monto">Monto (COP)</label>
-                <input type="number" id="monto" name="monto" min="1" step="0.01" placeholder="0" required>
+                <input 
+                    type="number" 
+                    id="monto" 
+                    name="monto" 
+                    min="1" 
+                    step="0.01" 
+                    placeholder="0" 
+                    required
+                >
             </div>
 
             <div class="form-group">
                 <label for="categoria">Categoría</label>
-                <select id="categoria" name="categoria" required></select>
+                <select id="categoria" name="categoria" required>
+                    <!-- Las categorías se cargan con JavaScript -->
+                </select>
             </div>
 
             <div class="form-group">
                 <label for="fecha">Fecha</label>
-                <input type="date" id="fecha" name="fecha" value="{{ hoy_input }}" required>
+                <input 
+                    type="date" 
+                    id="fecha" 
+                    name="fecha" 
+                    value="{{ hoy_input }}" 
+                    required
+                >
             </div>
 
             <div class="modal-actions">
-                <button type="button" class="btn-secondary" id="closeModal">Cancelar</button>
-                <button type="submit" class="btn-primary">Guardar</button>
+                <button type="button" class="btn-secondary" id="closeModal">
+                    Cancelar
+                </button>
+
+                <button type="submit" class="btn-primary">
+                    Guardar
+                </button>
             </div>
+
         </form>
     </div>
 </div>
 
 <script>
-    const ingresos = {{ ingresos|default(0) }};
-    const gastos = {{ gastos|default(0) }};
-    const balance = {{ balance|default(0) }};
-
-    function formatNumber(value) {
-        return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(value);
-    }
-
-    const centerTextPlugin = {
-        id: 'centerTextPlugin',
-        afterDraw(chart) {
-            const { ctx } = chart;
-            const meta = chart.getDatasetMeta(0);
-
-            if (!meta || !meta.data || !meta.data.length) return;
-
-            const x = meta.data[0].x;
-            const y = meta.data[0].y;
-
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#6b7a95';
-            ctx.font = '600 11px Inter';
-            ctx.fillText('Balance', x, y - 8);
-
-            ctx.fillStyle = balance < 0 ? '#dc2626' : '#059669';
-            ctx.font = '700 18px Inter';
-            const balanceText = `${balance < 0 ? '-' : ''}$${formatNumber(Math.abs(balance))}`;
-            ctx.fillText(balanceText, x, y + 16);
-            ctx.restore();
-        }
-    };
-
-    new Chart(document.getElementById('distributionChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Ingresos', 'Gastos'],
-            datasets: [{
-                data: [ingresos, gastos],
-                backgroundColor: ['#059669', '#dc2626'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '68%',
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        boxWidth: 10,
-                        padding: 18,
-                        color: '#22304a',
-                        font: {
-                            family: 'Inter',
-                            size: 13
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.label}: $${formatNumber(context.raw)}`;
-                        }
-                    }
-                }
-            }
-        },
-        plugins: [centerTextPlugin]
-    });
-
-    // MODAL
     const openModalBtn = document.getElementById('openModal');
     const closeModalBtn = document.getElementById('closeModal');
     const overlay = document.getElementById('modalOverlay');
     const modal = document.getElementById('movementModal');
-    const typeButtons = document.querySelectorAll('.type-btn');
-    const tipoHidden = document.getElementById('tipoHidden');
+
+    const tipoMovimiento = document.getElementById('tipoMovimiento');
     const categoriaSelect = document.getElementById('categoria');
+    const btnIngreso = document.getElementById('btnIngreso');
+    const btnGasto = document.getElementById('btnGasto');
 
-    const categories = {
-        Ingreso: [
-            'Salario',
-            'Freelance',
-            'Ventas',
-            'Inversiones',
-            'Otros ingresos'
-        ],
-        Gasto: [
-            'Alimentación',
-            'Ropa',
-            'Educación',
-            'Transporte',
-            'Ocio',
-            'Salud',
-            'Hogar',
-            'Servicios'
-        ]
-    };
+    const categoriasIngreso = [
+        { value: 'Salario', label: '💼 Salario' },
+        { value: 'Freelance', label: '💻 Freelance' },
+        { value: 'Ventas', label: '🛒 Ventas' },
+        { value: 'Inversiones', label: '📈 Inversiones' },
+        { value: 'Otros ingresos', label: '💰 Otros ingresos' }
+    ];
 
-    function renderCategories(type) {
+    const categoriasGasto = [
+        { value: 'Alimentación', label: '🍔 Alimentación' },
+        { value: 'Transporte', label: '🚌 Transporte' },
+        { value: 'Vivienda', label: '🏠 Vivienda' },
+        { value: 'Salud', label: '💊 Salud' },
+        { value: 'Educación', label: '📚 Educación' },
+        { value: 'Ocio', label: '🎮 Ocio' },
+        { value: 'Ropa', label: '👕 Ropa' },
+        { value: 'Hogar', label: '🏡 Hogar' },
+        { value: 'Servicios', label: '💡 Servicios' },
+        { value: 'Otros', label: '📦 Otros' }
+    ];
+
+    function cargarCategorias(tipo) {
         categoriaSelect.innerHTML = '';
-        categories[type].forEach(item => {
+
+        const lista = tipo === 'Ingreso' ? categoriasIngreso : categoriasGasto;
+
+        lista.forEach(item => {
             const option = document.createElement('option');
-            option.value = item;
-            option.textContent = item;
+            option.value = item.value;
+            option.textContent = item.label;
             categoriaSelect.appendChild(option);
         });
     }
 
-    function setType(type) {
-        tipoHidden.value = type;
+    function seleccionarTipo(tipo) {
+        tipoMovimiento.value = tipo;
 
-        typeButtons.forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.type === type) {
-                btn.classList.add('active');
-            }
-        });
+        if (tipo === 'Ingreso') {
+            btnIngreso.classList.add('active');
+            btnGasto.classList.remove('active');
+        } else {
+            btnGasto.classList.add('active');
+            btnIngreso.classList.remove('active');
+        }
 
-        renderCategories(type);
+        cargarCategorias(tipo);
     }
 
     function openModal() {
         overlay.classList.add('show');
         modal.classList.add('show');
+        seleccionarTipo('Ingreso');
     }
 
     function closeModal() {
@@ -367,18 +146,19 @@
         modal.classList.remove('show');
     }
 
-    openModalBtn.addEventListener('click', openModal);
-    closeModalBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', closeModal);
+    if (openModalBtn) {
+        openModalBtn.addEventListener('click', openModal);
+    }
 
-    typeButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            setType(btn.dataset.type);
-        });
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', closeModal);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        seleccionarTipo('Ingreso');
     });
-
-    setType('Ingreso');
 </script>
-
-</body>
-</html>
