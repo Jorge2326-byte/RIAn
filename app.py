@@ -393,35 +393,86 @@ def categorias():
 
     usuario_id = session['usuario_id']
 
+    # Categorías fijas para que siempre aparezcan como en el diseño
+    categorias_base = [
+        {"nombre": "Alimentación", "presupuesto": 400000},
+        {"nombre": "Transporte", "presupuesto": 150000},
+        {"nombre": "Vivienda", "presupuesto": 600000},
+        {"nombre": "Salud", "presupuesto": 200000},
+        {"nombre": "Educación", "presupuesto": 300000},
+        {"nombre": "Ocio", "presupuesto": 150000},
+        {"nombre": "Ropa", "presupuesto": 250000},
+        {"nombre": "Otros", "presupuesto": 100000},
+    ]
+
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Gastos reales del mes por categoría
     cur.execute("""
-        SELECT categoria,
-               COALESCE(SUM(CASE WHEN tipo='Ingreso' THEN monto ELSE 0 END), 0) AS ingresos,
-               COALESCE(SUM(CASE WHEN tipo='Gasto' THEN monto ELSE 0 END), 0) AS gastos,
-               COUNT(*) AS total_movimientos
+        SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
         WHERE usuario_id=%s
+          AND tipo='Gasto'
+          AND fecha >= date_trunc('month', CURRENT_DATE)
+          AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
         GROUP BY categoria
-        ORDER BY categoria ASC
     """, (usuario_id,))
+    gastos_rows = cur.fetchall()
 
-    rows = cur.fetchall()
+    # Presupuestos guardados por el usuario
+    cur.execute("""
+        SELECT categoria, limite_mensual
+        FROM presupuestos
+        WHERE usuario_id=%s
+    """, (usuario_id,))
+    presupuestos_rows = cur.fetchall()
 
     cur.close()
     conn.close()
 
+    gastos_dict = {}
+    for categoria, total in gastos_rows:
+        gastos_dict[(categoria or "Otros").strip().lower()] = float(total or 0)
+
+    presupuestos_dict = {}
+    for categoria, limite in presupuestos_rows:
+        presupuestos_dict[(categoria or "Otros").strip().lower()] = float(limite or 0)
+
     categorias_lista = []
-    for row in rows:
-        icono, color = categoria_meta(row[0])
+
+    total_gastos_mes = sum(gastos_dict.values())
+
+    for item in categorias_base:
+        nombre = item["nombre"]
+        clave = nombre.strip().lower()
+
+        gastado = gastos_dict.get(clave, 0)
+        presupuesto = presupuestos_dict.get(clave, item["presupuesto"])
+
+        porcentaje = 0
+        if total_gastos_mes > 0:
+            porcentaje = round((gastado / total_gastos_mes) * 100, 1)
+
+        porcentaje_presupuesto = 0
+        if presupuesto > 0:
+            porcentaje_presupuesto = round((gastado / presupuesto) * 100, 1)
+
+        icono, color = categoria_meta(nombre)
+
         categorias_lista.append({
-            "nombre": row[0] or "Sin categoría",
-            "ingresos": float(row[1] or 0),
-            "gastos": float(row[2] or 0),
-            "total_movimientos": int(row[3] or 0),
+            "nombre": nombre,
+            "categoria": nombre,
             "icono": icono,
-            "color": color
+            "color": color,
+            "total": gastado,
+            "gastos": gastado,
+            "monto": gastado,
+            "presupuesto": presupuesto,
+            "limite_mensual": presupuesto,
+            "porcentaje": porcentaje,
+            "porcentaje_presupuesto": porcentaje_presupuesto,
+            "width": min(porcentaje_presupuesto, 100)
         })
 
     return render_template(
