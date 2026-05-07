@@ -412,7 +412,6 @@ def categorias():
     cur.close()
     conn.close()
 
-    # Presupuestos base para que el diseño pueda mostrar barras como en tu imagen
     presupuestos_base = {
         "Alimentación": 400000,
         "Transporte": 150000,
@@ -424,8 +423,10 @@ def categorias():
         "Otros": 100000
     }
 
-    categorias_lista = []
     total_gastos = sum(float(row[1] or 0) for row in rows)
+
+    categorias_reporte = []
+    categorias_detalle = []
 
     for row in rows:
         nombre = row[0] or "Otros"
@@ -436,40 +437,31 @@ def categorias():
         if total_gastos > 0:
             porcentaje = round((total / total_gastos) * 100, 1)
 
-        porcentaje_presupuesto = 0
+        barra = 0
         if presupuesto > 0:
-            porcentaje_presupuesto = round((total / presupuesto) * 100, 1)
+            barra = round((total / presupuesto) * 100, 1)
+
+        barra = min(barra, 100)
 
         icono, color = categoria_meta(nombre)
 
-        categorias_lista.append({
+        item = {
             "nombre": nombre,
-            "categoria": nombre,
             "icono": icono,
             "color": color,
             "total": total,
-            "monto": total,
-            "gastos": total,
-            "valor": total,
             "presupuesto": presupuesto,
-            "limite_mensual": presupuesto,
             "porcentaje": porcentaje,
-            "porcentaje_presupuesto": porcentaje_presupuesto,
-            "width": min(porcentaje_presupuesto, 100)
-        })
+            "barra": barra
+        }
+
+        categorias_reporte.append(item)
+        categorias_detalle.append(item)
 
     return render_template(
         'categorias.html',
-
-        # Varias formas del mismo dato, para que funcione con cualquier nombre que use tu HTML
-        categorias=categorias_lista,
-        datos=categorias_lista,
-        categorias_gasto=categorias_lista,
-        gastos_categorias=categorias_lista,
-        gastos_por_categoria=categorias_lista,
-        analisis_detallado=categorias_lista,
-        resumen_categorias=categorias_lista,
-
+        categorias_reporte=categorias_reporte,
+        categorias_detalle=categorias_detalle,
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
