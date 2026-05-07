@@ -1,3 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIAN | Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="app-body">
+
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-icon">💰</div>
+                <div>
+                    <h2>RIAN</h2>
+                    <p>Finanzas Personales</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link active">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="{{ url_for('movimientos') }}" class="nav-link">
+                    <span>📝</span> Movimientos
+                </a>
+                <a href="{{ url_for('categorias') }}" class="nav-link">
+    <span>🏷️</span> Categorías
+</a>
+                <a href="{{ url_for('alertas') }}" class="nav-link">
+                    <span>🔔</span> Alertas
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ usuario[:1] }}</div>
+            <div class="user-info">
+                <strong>{{ usuario }}</strong>
+                <span>{{ correo_usuario }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-mini" title="Cerrar sesión">⏻</a>
+        </div>
+    </aside>
+
+    <main class="dashboard-content">
+        <div class="topbar">
+            <div>
+                <h1>Dashboard</h1>
+                <p>{{ fecha_actual }}</p>
+            </div>
+
+            <button type="button" class="btn-add" id="openModal">+ Agregar</button>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="page-flashes">
+                    {% for category, message in messages %}
+                        <div class="page-flash {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="stats-grid">
+            <article class="stat-card stat-green">
+                <div class="stat-icon">💵</div>
+                <span>INGRESOS DEL MES</span>
+                <h3>${{ formatear_monto(ingresos) }}</h3>
+            </article>
+
+            <article class="stat-card stat-red">
+                <div class="stat-icon">💸</div>
+                <span>GASTOS DEL MES</span>
+                <h3>${{ formatear_monto(gastos) }}</h3>
+            </article>
+
+            <article class="stat-card stat-blue">
+                <div class="stat-icon">💳</div>
+                <span>BALANCE DISPONIBLE</span>
+                <h3 class="{{ 'negative' if balance < 0 else 'positive' }}">
+                    {% if balance < 0 %}-{% endif %}${{ formatear_monto(balance|abs) }}
+                </h3>
+            </article>
+
+            <article class="stat-card stat-yellow">
+                <div class="stat-icon">📁</div>
+                <span>MOVIMIENTOS</span>
+                <h3>{{ total_movimientos }}</h3>
+            </article>
+        </section>
+
+        <section class="dashboard-grid">
+            <div class="panel panel-large">
+                <div class="panel-header">
+                    <div>
+                        <h2>Gastos por categoría</h2>
+                        <p>Este mes</p>
+                    </div>
+                </div>
+
+                {% if categorias_resumen %}
+                    <div class="category-list">
+                        {% for item in categorias_resumen %}
+                            <div class="category-row">
+                                <div class="category-name">
+                                    <span class="category-emoji">{{ item.icono }}</span>
+                                    <span>{{ item.nombre }}</span>
+                                </div>
+
+                                <div class="category-bar-wrap">
+                                    <div class="category-bar-bg">
+                                        <div class="category-bar {{ item.color }}" style="width: {{ item.width }}%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="category-value">
+                                    ${{ formatear_monto(item.total) }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        Aún no tienes gastos registrados este mes.
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="panel panel-chart">
+                <div class="panel-header">
+                    <div>
+                        <h2>Distribución</h2>
+                        <p>Ingresos vs Gastos</p>
+                    </div>
+                </div>
+
+                <div class="chart-box">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel recent-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Últimos movimientos</h2>
+                </div>
+            </div>
+
+            {% if movimientos %}
+                <div class="movements-list">
+                    {% for mov in movimientos %}
+                        <div class="movement-item">
+                            <div class="movement-left">
+                                <div class="movement-icon">{{ mov.icono }}</div>
+                                <div class="movement-text">
+                                    <h4>{{ mov.descripcion }}</h4>
+                                    <p>{{ mov.categoria }} · {{ mov.fecha_texto }}</p>
+                                </div>
+                            </div>
+
+                            <div class="movement-amount {{ 'negative' if mov.tipo == 'Gasto' else 'positive' }}">
+                                {% if mov.tipo == 'Gasto' %}-{% else %}+{% endif %}${{ formatear_monto(mov.monto) }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    Todavía no tienes movimientos registrados.
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</div>
+
+<!-- MODAL -->
 <!-- MODAL REGISTRAR MOVIMIENTO -->
 <div class="modal-overlay" id="modalOverlay"></div>
 
@@ -162,3 +350,5 @@
         seleccionarTipo('Ingreso');
     });
 </script>
+</body>
+</html>
