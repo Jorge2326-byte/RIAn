@@ -325,18 +325,18 @@ def movimientos():
     for mov in rows:
         icono, color = categoria_meta(mov[4])
         datos.append({
-            "id": mov[0],
-            "tipo": mov[1],
-            "descripcion": mov[2],
-            "monto": float(mov[3] or 0),
-            "categoria": mov[4] or "Sin categoría",
-            "fecha": mov[5],
-            "fecha_texto": mov[5].strftime("%Y-%m-%d %H:%M:%S") if mov[5] else "",
-            "fecha_corta": mov[5].strftime("%Y-%m-%d") if mov[5] else "",
-            "hora_texto": mov[5].strftime("%I:%M %p") if mov[5] else "",
-            "icono": icono,
-            "color": color
-        })
+    "id": mov[0],
+    "tipo": mov[1],
+    "descripcion": mov[2],
+    "monto": float(mov[3] or 0),
+    "categoria": mov[4] or "Sin categoría",
+    "fecha": mov[5],
+    "fecha_texto": mov[5].strftime("%Y-%m-%d %H:%M:%S") if mov[5] else "",
+    "fecha_corta": mov[5].strftime("%Y-%m-%d") if mov[5] else "",
+    "hora_texto": mov[5].strftime("%I:%M %p") if mov[5] else "",
+    "icono": icono,
+    "color": color
+})
 
     categorias_opciones = [
         "Alimentación",
