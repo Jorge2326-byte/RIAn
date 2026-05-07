@@ -71,10 +71,10 @@
                     <article class="report-category-card">
                         <div class="report-category-icon">{{ item.icono }}</div>
                         <h3>{{ item.nombre }}</h3>
-                        <strong class="{{ item.color }}">
-                            ${{ formatear_monto(item.total) }}
-                        </strong>
-                        <span>{{ item.porcentaje }}%</span>
+                        <strong class="category-amount {{ item.color }}-text">
+    ${{ formatear_monto(item.total) }}
+</strong>
+<span class="category-percent">{{ item.porcentaje }}%</span>
                     </article>
                 {% endfor %}
             </div>
