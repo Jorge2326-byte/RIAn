@@ -4,6 +4,7 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -375,6 +376,12 @@ def guardar_movimiento():
     categoria = request.form.get('categoria', 'Sin categoría').strip()
 
     fecha_form = request.form.get('fecha')
+ahora = hora_colombia()
+
+if fecha_form:
+    fecha = f"{fecha_form} {ahora.strftime('%H:%M:%S')}"
+else:
+    fecha = ahora.strftime('%Y-%m-%d %H:%M:%S')
 
     if fecha_form:
         fecha = f"{fecha_form} {datetime.now().strftime('%H:%M:%S')}"
@@ -413,6 +420,9 @@ def guardar_movimiento():
 
     flash('Movimiento guardado correctamente', 'success')
     return redirect('/dashboard')
+
+def hora_colombia():
+    return datetime.now(ZoneInfo("America/Bogota"))
     
 # ================== ELIMINAR MOVIMIENTO ==================
 
