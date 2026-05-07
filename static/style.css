@@ -1527,3 +1527,56 @@ body.auth-page{
         text-align:left;
     }
 }
+
+/* ===== CORRECCIÓN VISUAL CATEGORÍAS ===== */
+
+.report-category-card strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a !important;
+    margin-top: 4px;
+}
+
+.report-category-card strong.cat-orange {
+    color: #f59e0b !important;
+}
+
+.report-category-card strong.cat-yellow {
+    color: #eab308 !important;
+}
+
+.report-category-card strong.cat-cyan {
+    color: #06b6d4 !important;
+}
+
+.report-category-card strong.cat-blue {
+    color: #3b82f6 !important;
+}
+
+.report-category-card strong.cat-pink {
+    color: #ec4899 !important;
+}
+
+.report-category-card strong.cat-green {
+    color: #10b981 !important;
+}
+
+.report-category-card strong.cat-brown {
+    color: #92400e !important;
+}
+
+.analysis-amount {
+    color: #0f172a !important;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.analysis-content p {
+    color: #64748b !important;
+}
+
+.report-category-card span {
+    color: #94a3b8 !important;
+    font-weight: 600;
+}
