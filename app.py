@@ -386,29 +386,16 @@ def eliminar(id):
 
 # ================== CATEGORÍAS ==================
 
-@app.route('/categorias')
+@app.route('/categorias') 
 def categorias():
     if 'usuario_id' not in session:
         return redirect('/')
 
     usuario_id = session['usuario_id']
 
-    # Categorías fijas para que siempre aparezcan como en el diseño
-    categorias_base = [
-        {"nombre": "Alimentación", "presupuesto": 400000},
-        {"nombre": "Transporte", "presupuesto": 150000},
-        {"nombre": "Vivienda", "presupuesto": 600000},
-        {"nombre": "Salud", "presupuesto": 200000},
-        {"nombre": "Educación", "presupuesto": 300000},
-        {"nombre": "Ocio", "presupuesto": 150000},
-        {"nombre": "Ropa", "presupuesto": 250000},
-        {"nombre": "Otros", "presupuesto": 100000},
-    ]
-
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Gastos reales del mes por categoría
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -417,46 +404,41 @@ def categorias():
           AND fecha >= date_trunc('month', CURRENT_DATE)
           AND fecha < date_trunc('month', CURRENT_DATE) + interval '1 month'
         GROUP BY categoria
+        ORDER BY total DESC
     """, (usuario_id,))
-    gastos_rows = cur.fetchall()
 
-    # Presupuestos guardados por el usuario
-    cur.execute("""
-        SELECT categoria, limite_mensual
-        FROM presupuestos
-        WHERE usuario_id=%s
-    """, (usuario_id,))
-    presupuestos_rows = cur.fetchall()
+    rows = cur.fetchall()
 
     cur.close()
     conn.close()
 
-    gastos_dict = {}
-    for categoria, total in gastos_rows:
-        gastos_dict[(categoria or "Otros").strip().lower()] = float(total or 0)
-
-    presupuestos_dict = {}
-    for categoria, limite in presupuestos_rows:
-        presupuestos_dict[(categoria or "Otros").strip().lower()] = float(limite or 0)
+    # Presupuestos base para que el diseño pueda mostrar barras como en tu imagen
+    presupuestos_base = {
+        "Alimentación": 400000,
+        "Transporte": 150000,
+        "Vivienda": 600000,
+        "Salud": 200000,
+        "Educación": 300000,
+        "Ocio": 150000,
+        "Ropa": 250000,
+        "Otros": 100000
+    }
 
     categorias_lista = []
+    total_gastos = sum(float(row[1] or 0) for row in rows)
 
-    total_gastos_mes = sum(gastos_dict.values())
-
-    for item in categorias_base:
-        nombre = item["nombre"]
-        clave = nombre.strip().lower()
-
-        gastado = gastos_dict.get(clave, 0)
-        presupuesto = presupuestos_dict.get(clave, item["presupuesto"])
+    for row in rows:
+        nombre = row[0] or "Otros"
+        total = float(row[1] or 0)
+        presupuesto = presupuestos_base.get(nombre, 100000)
 
         porcentaje = 0
-        if total_gastos_mes > 0:
-            porcentaje = round((gastado / total_gastos_mes) * 100, 1)
+        if total_gastos > 0:
+            porcentaje = round((total / total_gastos) * 100, 1)
 
         porcentaje_presupuesto = 0
         if presupuesto > 0:
-            porcentaje_presupuesto = round((gastado / presupuesto) * 100, 1)
+            porcentaje_presupuesto = round((total / presupuesto) * 100, 1)
 
         icono, color = categoria_meta(nombre)
 
@@ -465,9 +447,10 @@ def categorias():
             "categoria": nombre,
             "icono": icono,
             "color": color,
-            "total": gastado,
-            "gastos": gastado,
-            "monto": gastado,
+            "total": total,
+            "monto": total,
+            "gastos": total,
+            "valor": total,
             "presupuesto": presupuesto,
             "limite_mensual": presupuesto,
             "porcentaje": porcentaje,
@@ -477,12 +460,19 @@ def categorias():
 
     return render_template(
         'categorias.html',
+
+        # Varias formas del mismo dato, para que funcione con cualquier nombre que use tu HTML
         categorias=categorias_lista,
         datos=categorias_lista,
+        categorias_gasto=categorias_lista,
+        gastos_categorias=categorias_lista,
+        gastos_por_categoria=categorias_lista,
+        analisis_detallado=categorias_lista,
+        resumen_categorias=categorias_lista,
+
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
-
 
 # ================== REPORTES ==================
 
