@@ -121,9 +121,12 @@
                         {% if datos %}
                             {% for mov in datos %}
                                 <tr>
-                                    <td>{{ mov.fecha }}</td>
-
-                                    <td>
+                                   <td>
+    <div class="date-cell">
+        <strong>{{ mov.fecha_corta }}</strong>
+        <span>{{ mov.hora_texto }}</span>
+    </div>
+</td>
                                         <strong>{{ mov.descripcion }}</strong>
                                     </td>
 
