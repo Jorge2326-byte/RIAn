@@ -118,59 +118,61 @@
                     </thead>
 
                     <tbody>
-                        {% if datos %}
-                            {% for mov in datos %}
-                                <tr>
-                                   <td>
-    <div class="date-cell">
-        <strong>{{ mov.fecha_corta }}</strong>
-        <span>{{ mov.hora_texto }}</span>
-    </div>
-</td>
-                                        <strong>{{ mov.descripcion }}</strong>
-                                    </td>
+    {% if datos %}
+        {% for mov in datos %}
+            <tr>
+                <td>
+                    <div class="date-cell">
+                        <strong>{{ mov.fecha_corta }}</strong>
+                        <span>{{ mov.hora_texto }}</span>
+                    </div>
+                </td>
 
-                                    <td>
-                                        <span class="category-inline">
-                                            <span>{{ mov.icono }}</span>
-                                            {{ mov.categoria }}
-                                        </span>
-                                    </td>
+                <td>
+                    <strong>{{ mov.descripcion }}</strong>
+                </td>
 
-                                    <td>
-                                        <span class="type-badge {{ 'income-badge' if mov.tipo == 'Ingreso' else 'expense-badge' }}">
-                                            {{ mov.tipo }}
-                                        </span>
-                                    </td>
+                <td>
+                    <span class="category-inline">
+                        <span>{{ mov.icono }}</span>
+                        {{ mov.categoria }}
+                    </span>
+                </td>
 
-                                    <td>
-                                        <span class="amount-cell {{ 'positive' if mov.tipo == 'Ingreso' else 'negative' }}">
-                                            {% if mov.tipo == 'Ingreso' %}+{% else %}-{% endif %}${{ formatear_monto(mov.monto) }}
-                                        </span>
-                                    </td>
+                <td>
+                    <span class="type-badge {{ 'income-badge' if mov.tipo == 'Ingreso' else 'expense-badge' }}">
+                        {{ mov.tipo }}
+                    </span>
+                </td>
 
-                                    <td class="actions-cell">
-                                        <a
-                                            href="{{ url_for('eliminar', id=mov.id) }}"
-                                            class="delete-btn"
-                                            onclick="return confirm('¿Seguro que deseas eliminar este movimiento?')"
-                                            title="Eliminar"
-                                        >
-                                            🗑️
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6">
-                                    <div class="empty-state table-empty">
-                                        No hay movimientos para mostrar.
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
+                <td>
+                    <span class="amount-cell {{ 'positive' if mov.tipo == 'Ingreso' else 'negative' }}">
+                        {% if mov.tipo == 'Ingreso' %}+{% else %}-{% endif %}${{ formatear_monto(mov.monto) }}
+                    </span>
+                </td>
+
+                <td class="actions-cell">
+                    <a
+                        href="{{ url_for('eliminar', id=mov.id) }}"
+                        class="delete-btn"
+                        onclick="return confirm('¿Seguro que deseas eliminar este movimiento?')"
+                        title="Eliminar"
+                    >
+                        🗑️
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state table-empty">
+                    No hay movimientos para mostrar.
+                </div>
+            </td>
+        </tr>
+    {% endif %}
+</tbody>
                 </table>
             </div>
         </section>
