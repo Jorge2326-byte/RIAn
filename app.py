@@ -275,16 +275,47 @@ def movimientos():
     if 'usuario_id' not in session:
         return redirect('/')
 
+    usuario_id = session['usuario_id']
+
+    buscar = request.args.get('buscar', '').strip()
+    filtro = request.args.get('filtro', 'Todos').strip()
+    categoria_filtro = request.args.get('categoria', 'Todas las categorías').strip()
+
     conn = get_db_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    query = """
         SELECT id, tipo, descripcion, monto, categoria, fecha
         FROM movimientos
-        WHERE usuario_id=%s
-        ORDER BY fecha DESC, id DESC
-    """, (session['usuario_id'],))
+        WHERE usuario_id = %s
+    """
 
+    params = [usuario_id]
+
+    # Buscar por descripción o categoría
+    if buscar:
+        query += """
+            AND (
+                descripcion ILIKE %s
+                OR categoria ILIKE %s
+            )
+        """
+        params.append(f"%{buscar}%")
+        params.append(f"%{buscar}%")
+
+    # Filtrar por tipo: Ingreso o Gasto
+    if filtro and filtro != "Todos":
+        query += " AND tipo = %s"
+        params.append(filtro)
+
+    # Filtrar por categoría
+    if categoria_filtro and categoria_filtro != "Todas las categorías":
+        query += " AND categoria = %s"
+        params.append(categoria_filtro)
+
+    query += " ORDER BY fecha DESC, id DESC"
+
+    cur.execute(query, tuple(params))
     rows = cur.fetchall()
 
     cur.close()
@@ -300,19 +331,37 @@ def movimientos():
             "monto": float(mov[3] or 0),
             "categoria": mov[4] or "Sin categoría",
             "fecha": mov[5],
-            "fecha_texto": formato_fecha(mov[5]),
+            "fecha_texto": mov[5].strftime("%Y-%m-%d %H:%M:%S") if mov[5] else "",
+            "fecha_corta": mov[5].strftime("%Y-%m-%d") if mov[5] else "",
+            "hora_texto": mov[5].strftime("%I:%M %p") if mov[5] else "",
             "icono": icono,
             "color": color
         })
+
+    categorias_opciones = [
+        "Alimentación",
+        "Transporte",
+        "Vivienda",
+        "Salud",
+        "Educación",
+        "Ocio",
+        "Ropa",
+        "Salario",
+        "Freelance",
+        "Otros"
+    ]
 
     return render_template(
         'movimientos.html',
         datos=datos,
         movimientos=datos,
+        buscar=buscar,
+        filtro=filtro,
+        categoria_filtro=categoria_filtro,
+        categorias_opciones=categorias_opciones,
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
-
 
 # ================== GUARDAR MOVIMIENTO ==================
 
@@ -324,7 +373,12 @@ def guardar_movimiento():
     tipo = request.form.get('tipo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
     categoria = request.form.get('categoria', 'Sin categoría').strip()
-    fecha = request.form.get('fecha') or datetime.now().strftime('%Y-%m-%d')
+    fecha_form = request.form.get('fecha')
+
+if fecha_form:
+    fecha = f"{fecha_form} {datetime.now().strftime('%H:%M:%S')}"
+else:
+    fecha = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         monto = float(request.form.get('monto', 0))
