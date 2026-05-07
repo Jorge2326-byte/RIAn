@@ -384,9 +384,9 @@ def eliminar(id):
     return redirect('/movimientos')
 
 
-# ================== CATEGORÍAS ==================
+# ================== CATEGORÍAS ================== 
 
-@app.route('/categorias') 
+@app.route('/categorias')
 def categorias():
     if 'usuario_id' not in session:
         return redirect('/')
@@ -396,6 +396,7 @@ def categorias():
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Gastos reales del mes por categoría
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -406,8 +407,15 @@ def categorias():
         GROUP BY categoria
         ORDER BY total DESC
     """, (usuario_id,))
+    gastos_rows = cur.fetchall()
 
-    rows = cur.fetchall()
+    # Presupuestos guardados por el usuario
+    cur.execute("""
+        SELECT categoria, limite_mensual
+        FROM presupuestos
+        WHERE usuario_id=%s
+    """, (usuario_id,))
+    presupuestos_rows = cur.fetchall()
 
     cur.close()
     conn.close()
@@ -415,7 +423,7 @@ def categorias():
     presupuestos_base = {
         "Alimentación": 400000,
         "Transporte": 150000,
-        "Vivienda": 600000,
+        "Vivienda": 950000,
         "Salud": 200000,
         "Educación": 300000,
         "Ocio": 150000,
@@ -423,15 +431,27 @@ def categorias():
         "Otros": 100000
     }
 
-    total_gastos = sum(float(row[1] or 0) for row in rows)
+    presupuestos_dict = {}
+    for categoria, limite in presupuestos_rows:
+        clave = (categoria or "Otros").strip().lower()
+        presupuestos_dict[clave] = float(limite or 0)
+
+    total_gastos = sum(float(row[1] or 0) for row in gastos_rows)
 
     categorias_reporte = []
     categorias_detalle = []
 
-    for row in rows:
+    for row in gastos_rows:
         nombre = row[0] or "Otros"
+        clave = nombre.strip().lower()
         total = float(row[1] or 0)
-        presupuesto = presupuestos_base.get(nombre, 100000)
+
+        # Primero busca el presupuesto real guardado.
+        # Si no existe, usa el presupuesto base.
+        presupuesto = presupuestos_dict.get(
+            clave,
+            presupuestos_base.get(nombre, 100000)
+        )
 
         porcentaje = 0
         if total_gastos > 0:
