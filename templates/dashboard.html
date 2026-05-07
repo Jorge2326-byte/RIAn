@@ -278,6 +278,7 @@
 <script>
     // ================== MODAL ==================
 
+<script>
     const openModalBtn = document.getElementById('openModal');
     const closeModalBtn = document.getElementById('closeModal');
     const overlay = document.getElementById('modalOverlay');
@@ -292,7 +293,6 @@
         { value: 'Salario', label: '💼 Salario' },
         { value: 'Freelance', label: '💻 Freelance' },
         { value: 'Ventas', label: '🛒 Ventas' },
-        { value: 'Inversiones', label: '📈 Inversiones' },
         { value: 'Otros ingresos', label: '💰 Otros ingresos' }
     ];
 
@@ -304,14 +304,12 @@
         { value: 'Educación', label: '📚 Educación' },
         { value: 'Ocio', label: '🎮 Ocio' },
         { value: 'Ropa', label: '👕 Ropa' },
-        { value: 'Hogar', label: '🏡 Hogar' },
         { value: 'Servicios', label: '💡 Servicios' },
         { value: 'Otros', label: '📦 Otros' }
     ];
 
     function cargarCategorias(tipo) {
         categoriaSelect.innerHTML = '';
-
         const lista = tipo === 'Ingreso' ? categoriasIngreso : categoriasGasto;
 
         lista.forEach(item => {
@@ -347,98 +345,80 @@
         modal.classList.remove('show');
     }
 
-    if (openModalBtn) {
-        openModalBtn.addEventListener('click', openModal);
-    }
+    if (openModalBtn) openModalBtn.addEventListener('click', openModal);
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (overlay) overlay.addEventListener('click', closeModal);
 
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', closeModal);
-    }
+    document.addEventListener('DOMContentLoaded', function () {
+        seleccionarTipo('Ingreso');
 
-    if (overlay) {
-        overlay.addEventListener('click', closeModal);
-    }
-
-    // ================== GRÁFICO DISTRIBUCIÓN ==================
-
-    const ingresosChart = Number({{ ingresos|default(0)|tojson }});
-    const gastosChart = Number({{ gastos|default(0)|tojson }});
-    const balanceChart = Number({{ balance|default(0)|tojson }});
-
-    function formatoCOP(valor) {
-        return '$' + Math.abs(valor).toLocaleString('en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        });
-    }
-
-    const centerTextPlugin = {
-        id: 'centerTextPlugin',
-        beforeDraw(chart) {
-            const { width, height, ctx } = chart;
-            ctx.save();
-
-            const centerX = width / 2;
-            const centerY = height / 2;
-
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            ctx.fillStyle = '#64748b';
-            ctx.font = '700 12px Inter, sans-serif';
-            ctx.fillText('Balance', centerX, centerY - 12);
-
-            ctx.fillStyle = balanceChart < 0 ? '#dc2626' : '#059669';
-            ctx.font = '800 18px Inter, sans-serif';
-            ctx.fillText(
-                (balanceChart < 0 ? '-' : '') + formatoCOP(balanceChart),
-                centerX,
-                centerY + 12
-            );
-
-            ctx.restore();
-        }
-    };
-
-    function crearGraficoDistribucion() {
         const canvas = document.getElementById('distributionChart');
+        if (!canvas) return;
 
-        if (!canvas || typeof Chart === 'undefined') {
-            return;
-        }
+        const ingresos = {{ ingresos|float }};
+        const gastos = {{ gastos|float }};
+        const balance = {{ balance|float }};
 
-        const ctx = canvas.getContext('2d');
-        const hayDatos = ingresosChart > 0 || gastosChart > 0;
+        const balanceTexto = `{% if balance < 0 %}-{% endif %}${{ formatear_monto(balance|abs) }}`;
 
-        new Chart(ctx, {
+        const centerTextPlugin = {
+            id: 'centerTextPlugin',
+            afterDraw(chart) {
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data || !meta.data.length) return;
+
+                const arc = meta.data[0];
+                const x = arc.x;
+                const y = arc.y;
+
+                const ctx = chart.ctx;
+                ctx.save();
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = '600 14px Inter, sans-serif';
+                ctx.fillText('Balance', x, y - 18);
+
+                ctx.fillStyle = balance < 0 ? '#dc2626' : '#059669';
+                ctx.font = '800 22px Inter, sans-serif';
+                ctx.fillText(balanceTexto, x, y + 10);
+
+                ctx.restore();
+            }
+        };
+
+        new Chart(canvas, {
             type: 'doughnut',
             data: {
                 labels: ['Ingresos', 'Gastos'],
                 datasets: [{
-                    data: hayDatos ? [ingresosChart, gastosChart] : [1, 0],
-                    backgroundColor: hayDatos
-                        ? ['#059669', '#dc2626']
-                        : ['#e5e7eb', '#e5e7eb'],
+                    data: [ingresos, gastos],
+                    backgroundColor: ['#0f9f6e', '#ef2b2d'],
                     borderWidth: 0,
-                    cutout: '68%'
+                    hoverOffset: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '68%',
+                layout: {
+                    padding: 10
+                },
                 plugins: {
                     legend: {
-                        display: true,
                         position: 'right',
                         labels: {
                             usePointStyle: true,
                             pointStyle: 'circle',
                             boxWidth: 10,
                             boxHeight: 10,
+                            padding: 18,
                             color: '#334155',
                             font: {
-                                family: 'Inter',
-                                size: 13,
+                                size: 14,
                                 weight: '600'
                             }
                         }
@@ -446,7 +426,11 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return context.label + ': ' + formatoCOP(context.raw);
+                                const valor = Number(context.raw || 0);
+                                return `${context.label}: $${valor.toLocaleString('es-CO', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                })}`;
                             }
                         }
                     }
@@ -454,12 +438,8 @@
             },
             plugins: [centerTextPlugin]
         });
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        seleccionarTipo('Ingreso');
-        crearGraficoDistribucion();
     });
+</script>
 </script>
 
 </body>
