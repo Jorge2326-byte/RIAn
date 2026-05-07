@@ -23,6 +23,10 @@ def get_db_connection():
 
 # ================== UTILIDADES ==================
 
+def hora_colombia():
+    return datetime.now(ZoneInfo("America/Bogota"))
+
+
 def categoria_meta(nombre):
     categoria = (nombre or "Sin categoría").strip().lower()
 
@@ -37,9 +41,13 @@ def categoria_meta(nombre):
         "ocio": ("🎮", "cat-pink"),
         "salud": ("💊", "cat-green"),
         "vivienda": ("🏠", "cat-orange"),
+        "hogar": ("🏠", "cat-orange"),
         "servicios": ("💡", "cat-blue"),
         "salario": ("💼", "cat-green"),
         "freelance": ("💻", "cat-cyan"),
+        "ventas": ("🛒", "cat-green"),
+        "inversiones": ("📈", "cat-green"),
+        "otros ingresos": ("💰", "cat-green"),
         "otros": ("📦", "cat-brown"),
         "sin categoría": ("📦", "cat-brown"),
         "sin categoria": ("📦", "cat-brown"),
@@ -162,7 +170,7 @@ def dashboard():
         return redirect('/')
 
     usuario_id = session['usuario_id']
-    hoy = datetime.now()
+    hoy = hora_colombia()
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -293,7 +301,6 @@ def movimientos():
 
     params = [usuario_id]
 
-    # Buscar por descripción o categoría
     if buscar:
         query += """
             AND (
@@ -304,12 +311,10 @@ def movimientos():
         params.append(f"%{buscar}%")
         params.append(f"%{buscar}%")
 
-    # Filtrar por tipo: Ingreso o Gasto
     if filtro and filtro != "Todos":
         query += " AND tipo = %s"
         params.append(filtro)
 
-    # Filtrar por categoría
     if categoria_filtro and categoria_filtro != "Todas las categorías":
         query += " AND categoria = %s"
         params.append(categoria_filtro)
@@ -326,18 +331,18 @@ def movimientos():
     for mov in rows:
         icono, color = categoria_meta(mov[4])
         datos.append({
-    "id": mov[0],
-    "tipo": mov[1],
-    "descripcion": mov[2],
-    "monto": float(mov[3] or 0),
-    "categoria": mov[4] or "Sin categoría",
-    "fecha": mov[5],
-    "fecha_texto": mov[5].strftime("%Y-%m-%d %H:%M:%S") if mov[5] else "",
-    "fecha_corta": mov[5].strftime("%Y-%m-%d") if mov[5] else "",
-    "hora_texto": mov[5].strftime("%I:%M %p") if mov[5] else "",
-    "icono": icono,
-    "color": color
-})
+            "id": mov[0],
+            "tipo": mov[1],
+            "descripcion": mov[2],
+            "monto": float(mov[3] or 0),
+            "categoria": mov[4] or "Sin categoría",
+            "fecha": mov[5],
+            "fecha_texto": mov[5].strftime("%Y-%m-%d %H:%M:%S") if mov[5] else "",
+            "fecha_corta": mov[5].strftime("%Y-%m-%d") if mov[5] else "",
+            "hora_texto": mov[5].strftime("%I:%M %p") if mov[5] else "",
+            "icono": icono,
+            "color": color
+        })
 
     categorias_opciones = [
         "Alimentación",
@@ -352,6 +357,8 @@ def movimientos():
         "Otros"
     ]
 
+    hoy = hora_colombia()
+
     return render_template(
         'movimientos.html',
         datos=datos,
@@ -360,9 +367,11 @@ def movimientos():
         filtro=filtro,
         categoria_filtro=categoria_filtro,
         categorias_opciones=categorias_opciones,
+        hoy_input=hoy.strftime('%Y-%m-%d'),
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
+
 
 # ================== GUARDAR MOVIMIENTO ==================
 
@@ -374,29 +383,25 @@ def guardar_movimiento():
     tipo = request.form.get('tipo', '').strip()
     descripcion = request.form.get('descripcion', '').strip()
     categoria = request.form.get('categoria', 'Sin categoría').strip()
+    redirect_to = request.form.get('redirect_to', 'dashboard')
 
     fecha_form = request.form.get('fecha')
-ahora = hora_colombia()
-
-if fecha_form:
-    fecha = f"{fecha_form} {ahora.strftime('%H:%M:%S')}"
-else:
-    fecha = ahora.strftime('%Y-%m-%d %H:%M:%S')
+    ahora = hora_colombia()
 
     if fecha_form:
-        fecha = f"{fecha_form} {datetime.now().strftime('%H:%M:%S')}"
+        fecha = f"{fecha_form} {ahora.strftime('%H:%M:%S')}"
     else:
-        fecha = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        fecha = ahora.strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         monto = float(request.form.get('monto', 0))
     except ValueError:
         flash('El monto no es válido', 'error')
-        return redirect('/dashboard')
+        return redirect('/movimientos' if redirect_to == 'movimientos' else '/dashboard')
 
     if not tipo or not descripcion or monto <= 0:
         flash('Completa todos los campos correctamente', 'error')
-        return redirect('/dashboard')
+        return redirect('/movimientos' if redirect_to == 'movimientos' else '/dashboard')
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -419,11 +424,13 @@ else:
         conn.close()
 
     flash('Movimiento guardado correctamente', 'success')
+
+    if redirect_to == 'movimientos':
+        return redirect('/movimientos')
+
     return redirect('/dashboard')
 
-def hora_colombia():
-    return datetime.now(ZoneInfo("America/Bogota"))
-    
+
 # ================== ELIMINAR MOVIMIENTO ==================
 
 @app.route('/eliminar/<int:id>')
@@ -448,7 +455,7 @@ def eliminar(id):
     return redirect('/movimientos')
 
 
-# ================== CATEGORÍAS ================== 
+# ================== CATEGORÍAS ==================
 
 @app.route('/categorias')
 def categorias():
@@ -460,7 +467,6 @@ def categorias():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Gastos reales del mes por categoría
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -473,7 +479,6 @@ def categorias():
     """, (usuario_id,))
     gastos_rows = cur.fetchall()
 
-    # Presupuestos guardados por el usuario
     cur.execute("""
         SELECT categoria, limite_mensual
         FROM presupuestos
@@ -510,8 +515,6 @@ def categorias():
         clave = nombre.strip().lower()
         total = float(row[1] or 0)
 
-        # Primero busca el presupuesto real guardado.
-        # Si no existe, usa el presupuesto base.
         presupuesto = presupuestos_dict.get(
             clave,
             presupuestos_base.get(nombre, 100000)
@@ -549,6 +552,7 @@ def categorias():
         usuario=session.get('usuario', 'Usuario'),
         correo_usuario=session.get('correo', '')
     )
+
 
 # ================== REPORTES ==================
 
@@ -628,7 +632,6 @@ def alertas():
 
     usuario_id = session['usuario_id']
 
-    # Presupuestos base para que siempre se vea como el diseño
     presupuestos_base = {
         "Alimentación": 400000,
         "Transporte": 150000,
@@ -643,7 +646,6 @@ def alertas():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Gastos reales del mes por categoría
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -655,7 +657,6 @@ def alertas():
     """, (usuario_id,))
     gastos_rows = cur.fetchall()
 
-    # Presupuestos personalizados del usuario
     cur.execute("""
         SELECT categoria, limite_mensual
         FROM presupuestos
@@ -730,6 +731,7 @@ def alertas():
         correo_usuario=session.get('correo', '')
     )
 
+
 # ================== GUARDAR PRESUPUESTO ==================
 
 @app.route('/guardar_presupuesto', methods=['POST'])
@@ -740,7 +742,6 @@ def guardar_presupuesto():
     usuario_id = session['usuario_id']
     categoria = request.form.get('categoria', '').strip()
 
-    # Tu HTML manda name="limite", no name="limite_mensual"
     limite_form = request.form.get('limite') or request.form.get('limite_mensual') or 0
 
     try:
