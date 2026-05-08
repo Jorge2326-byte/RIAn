@@ -278,7 +278,6 @@
 <script>
     // ================== MODAL ==================
 
-<script>
     const openModalBtn = document.getElementById('openModal');
     const closeModalBtn = document.getElementById('closeModal');
     const overlay = document.getElementById('modalOverlay');
@@ -293,6 +292,7 @@
         { value: 'Salario', label: '💼 Salario' },
         { value: 'Freelance', label: '💻 Freelance' },
         { value: 'Ventas', label: '🛒 Ventas' },
+        { value: 'Inversiones', label: '📈 Inversiones' },
         { value: 'Otros ingresos', label: '💰 Otros ingresos' }
     ];
 
@@ -304,11 +304,14 @@
         { value: 'Educación', label: '📚 Educación' },
         { value: 'Ocio', label: '🎮 Ocio' },
         { value: 'Ropa', label: '👕 Ropa' },
+        { value: 'Hogar', label: '🏡 Hogar' },
         { value: 'Servicios', label: '💡 Servicios' },
         { value: 'Otros', label: '📦 Otros' }
     ];
 
     function cargarCategorias(tipo) {
+        if (!categoriaSelect) return;
+
         categoriaSelect.innerHTML = '';
         const lista = tipo === 'Ingreso' ? categoriasIngreso : categoriasGasto;
 
@@ -321,81 +324,114 @@
     }
 
     function seleccionarTipo(tipo) {
-        tipoMovimiento.value = tipo;
+        if (tipoMovimiento) {
+            tipoMovimiento.value = tipo;
+        }
 
-        if (tipo === 'Ingreso') {
-            btnIngreso.classList.add('active');
-            btnGasto.classList.remove('active');
-        } else {
-            btnGasto.classList.add('active');
-            btnIngreso.classList.remove('active');
+        if (btnIngreso && btnGasto) {
+            if (tipo === 'Ingreso') {
+                btnIngreso.classList.add('active');
+                btnGasto.classList.remove('active');
+            } else {
+                btnGasto.classList.add('active');
+                btnIngreso.classList.remove('active');
+            }
         }
 
         cargarCategorias(tipo);
     }
 
     function openModal() {
+        if (!overlay || !modal) return;
         overlay.classList.add('show');
         modal.classList.add('show');
         seleccionarTipo('Ingreso');
     }
 
     function closeModal() {
+        if (!overlay || !modal) return;
         overlay.classList.remove('show');
         modal.classList.remove('show');
     }
 
-    if (openModalBtn) openModalBtn.addEventListener('click', openModal);
-    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-    if (overlay) overlay.addEventListener('click', closeModal);
+    if (openModalBtn) {
+        openModalBtn.addEventListener('click', openModal);
+    }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        seleccionarTipo('Ingreso');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
 
-        const canvas = document.getElementById('distributionChart');
-        if (!canvas) return;
+    if (overlay) {
+        overlay.addEventListener('click', closeModal);
+    }
 
-        const ingresos = {{ ingresos|float }};
-        const gastos = {{ gastos|float }};
-        const balance = {{ balance|float }};
+    // ================== GRÁFICO DISTRIBUCIÓN ==================
 
-        const balanceTexto = `{% if balance < 0 %}-{% endif %}${{ formatear_monto(balance|abs) }}`;
+    const ingresosChart = Number({{ ingresos|default(0)|tojson }});
+    const gastosChart = Number({{ gastos|default(0)|tojson }});
+    const balanceChart = Number({{ balance|default(0)|tojson }});
 
-        const centerTextPlugin = {
-            id: 'centerTextPlugin',
-            afterDraw(chart) {
-                const meta = chart.getDatasetMeta(0);
-                if (!meta || !meta.data || !meta.data.length) return;
+    function formatoCOP(valor) {
+        return '$' + Math.abs(Number(valor || 0)).toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+    }
 
-                const arc = meta.data[0];
-                const x = arc.x;
-                const y = arc.y;
+    const centerTextPlugin = {
+        id: 'centerTextPlugin',
+        afterDraw(chart) {
+            const meta = chart.getDatasetMeta(0);
 
-                const ctx = chart.ctx;
-                ctx.save();
-
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                ctx.fillStyle = '#64748b';
-                ctx.font = '600 14px Inter, sans-serif';
-                ctx.fillText('Balance', x, y - 18);
-
-                ctx.fillStyle = balance < 0 ? '#dc2626' : '#059669';
-                ctx.font = '800 22px Inter, sans-serif';
-                ctx.fillText(balanceTexto, x, y + 10);
-
-                ctx.restore();
+            if (!meta || !meta.data || !meta.data.length) {
+                return;
             }
-        };
+
+            const arc = meta.data[0];
+            const x = arc.x;
+            const y = arc.y;
+            const ctx = chart.ctx;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = '700 12px Inter, sans-serif';
+            ctx.fillText('Balance', x, y - 14);
+
+            ctx.fillStyle = balanceChart < 0 ? '#dc2626' : '#059669';
+            ctx.font = '800 16px Inter, sans-serif';
+            ctx.fillText(
+                (balanceChart < 0 ? '-' : '') + formatoCOP(balanceChart),
+                x,
+                y + 10
+            );
+
+            ctx.restore();
+        }
+    };
+
+    function crearGraficoDistribucion() {
+        const canvas = document.getElementById('distributionChart');
+
+        if (!canvas || typeof Chart === 'undefined') {
+            console.error('No se encontró el canvas o Chart.js no cargó.');
+            return;
+        }
+
+        const hayDatos = ingresosChart > 0 || gastosChart > 0;
 
         new Chart(canvas, {
             type: 'doughnut',
             data: {
                 labels: ['Ingresos', 'Gastos'],
                 datasets: [{
-                    data: [ingresos, gastos],
-                    backgroundColor: ['#0f9f6e', '#ef2b2d'],
+                    data: hayDatos ? [ingresosChart, gastosChart] : [1, 1],
+                    backgroundColor: hayDatos
+                        ? ['#059669', '#dc2626']
+                        : ['#e5e7eb', '#cbd5e1'],
                     borderWidth: 0,
                     hoverOffset: 4
                 }]
@@ -405,20 +441,22 @@
                 maintainAspectRatio: false,
                 cutout: '68%',
                 layout: {
-                    padding: 10
+                    padding: 8
                 },
                 plugins: {
                     legend: {
+                        display: true,
                         position: 'right',
                         labels: {
                             usePointStyle: true,
                             pointStyle: 'circle',
                             boxWidth: 10,
                             boxHeight: 10,
-                            padding: 18,
+                            padding: 16,
                             color: '#334155',
                             font: {
-                                size: 14,
+                                family: 'Inter',
+                                size: 13,
                                 weight: '600'
                             }
                         }
@@ -426,11 +464,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                const valor = Number(context.raw || 0);
-                                return `${context.label}: $${valor.toLocaleString('es-CO', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                })}`;
+                                return context.label + ': ' + formatoCOP(context.raw);
                             }
                         }
                     }
@@ -438,8 +472,12 @@
             },
             plugins: [centerTextPlugin]
         });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        seleccionarTipo('Ingreso');
+        crearGraficoDistribucion();
     });
-</script>
 </script>
 
 </body>
