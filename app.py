@@ -632,7 +632,8 @@ def alertas():
 
     usuario_id = session['usuario_id']
 
-    presupuestos_base = {
+    # Todas las categorías que quieres que aparezcan en Alertas
+    categorias_base = {
         "Alimentación": 400000,
         "Transporte": 150000,
         "Vivienda": 950000,
@@ -640,12 +641,20 @@ def alertas():
         "Educación": 300000,
         "Ocio": 150000,
         "Ropa": 250000,
+        "Hogar": 300000,
+        "Servicios": 300000,
+        "Salario": 1000000,
+        "Freelance": 500000,
+        "Ventas": 500000,
+        "Inversiones": 500000,
+        "Otros ingresos": 300000,
         "Otros": 100000
     }
 
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Gastos reales del mes por categoría
     cur.execute("""
         SELECT categoria, COALESCE(SUM(monto), 0) AS total
         FROM movimientos
@@ -657,6 +666,7 @@ def alertas():
     """, (usuario_id,))
     gastos_rows = cur.fetchall()
 
+    # Presupuestos personalizados guardados por el usuario
     cur.execute("""
         SELECT categoria, limite_mensual
         FROM presupuestos
@@ -677,9 +687,14 @@ def alertas():
         clave = (categoria or "Otros").strip().lower()
         presupuestos_dict[clave] = float(limite or 0)
 
+        # Si guardas una categoría que no estaba en categorias_base,
+        # también se agrega automáticamente a la lista.
+        if categoria and categoria not in categorias_base:
+            categorias_base[categoria] = float(limite or 0)
+
     alertas_lista = []
 
-    for categoria, limite_base in presupuestos_base.items():
+    for categoria, limite_base in categorias_base.items():
         clave = categoria.strip().lower()
 
         gasto = gastos_dict.get(clave, 0)
